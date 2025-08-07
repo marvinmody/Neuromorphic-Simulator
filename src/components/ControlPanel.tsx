@@ -21,11 +21,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onTopologyChange,
   onVisualizationChange
 }) => {
-  const [selectedTopology, setSelectedTopology] = useState<NetworkTopology>('cortical-column');
-  const [networkSize, setNetworkSize] = useState(8);
-  const [simulationSpeed, setSimulationSpeed] = useState(60);
+  const [selectedTopology, setSelectedTopology] = useState<NetworkTopology>('random');
+  const [networkSize, setNetworkSize] = useState(12);
+  const [simulationSpeed, setSimulationSpeed] = useState(10);
   const [inputPattern, setInputPattern] = useState('Poisson');
-  const [inputStrength, setInputStrength] = useState(0.5);
+  const [inputStrength, setInputStrength] = useState(0.8);
   const [showVoltageTraces, setShowVoltageTraces] = useState(false);
   const [showWeightEvolution, setShowWeightEvolution] = useState(true);
 
@@ -73,11 +73,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   const handleTopologyCreate = () => {
-    if (selectedTopology === 'cortical-column') {
-      network.createCorticalColumn([4, 6, 4, 2]);
-    } else {
-      onTopologyChange(selectedTopology, networkSize);
-    }
+    onTopologyChange(selectedTopology, networkSize);
   };
 
   const handleVisualizationToggle = () => {
@@ -119,12 +115,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <div className="control-group">
           <label>
             ⚡ Speed: {simulationSpeed}fps
-            <span className="help-text">Higher = faster simulation</span>
+            <span className="help-text">Simulation speed</span>
           </label>
           <input
             type="range"
             min="1"
-            max="120"
+            max="50"
             value={simulationSpeed}
             onChange={(e) => handleSpeedChange(Number(e.target.value))}
           />
@@ -144,26 +140,24 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             value={selectedTopology}
             onChange={(e) => setSelectedTopology(e.target.value as NetworkTopology)}
           >
-            <option value="cortical-column">Cortical Column</option>
-            <option value="feedforward">Feedforward</option>
             <option value="random">Random</option>
+            <option value="feedforward">Feedforward</option>
             <option value="small-world">Small World</option>
             <option value="ring">Ring</option>
+            <option value="cortical-column">Cortical Column</option>
           </select>
         </div>
         
-        {selectedTopology !== 'cortical-column' && (
-          <div className="control-group">
-            <label>Size: {networkSize} neurons</label>
-            <input
-              type="range"
-              min="4"
-              max="25"
-              value={networkSize}
-              onChange={(e) => setNetworkSize(Number(e.target.value))}
-            />
-          </div>
-        )}
+        <div className="control-group">
+          <label>Size: {networkSize} neurons</label>
+          <input
+            type="range"
+            min="6"
+            max="25"
+            value={networkSize}
+            onChange={(e) => setNetworkSize(Number(e.target.value))}
+          />
+        </div>
         
         <button onClick={handleTopologyCreate} className="create-btn">
           🏗️ Create Network
@@ -185,13 +179,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <option value="Random">Random</option>
             <option value="Pulse Train">Pulse Train</option>
             <option value="Wave">Traveling Wave</option>
+            <option value="Burst">Burst</option>
           </select>
         </div>
         
         <div className="control-group">
           <label>
             Strength: {inputStrength.toFixed(2)}
-            <span className="help-text">Current injection amplitude</span>
+            <span className="help-text">Input amplitude</span>
           </label>
           <input
             type="range"

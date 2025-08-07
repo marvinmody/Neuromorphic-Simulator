@@ -1,3 +1,5 @@
+
+// src/lib/Neuron.ts
 export interface NeuronConfig {
   threshold: number;
   restingPotential: number;

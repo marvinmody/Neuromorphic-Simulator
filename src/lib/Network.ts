@@ -1,6 +1,6 @@
 import { Neuron, NeuronConfig } from './Neuron';
 
-
+//Network.ts
 
 export interface SynapseConfig {
   from: number;
@@ -239,12 +239,10 @@ private createRingTopology(): void {
     }
   }
 }
-
-  createCorticalColumn(layers: number[] = [4, 8, 6, 2]): void {
-  this.neurons = [];
-  this.synapses = [];
-  
-  let neuronIndex = 0;
+    createCorticalColumn(layers: number[] = [4, 8, 6, 2]): void {
+        this.neurons = [];
+        this.synapses = [];
+        let neuronIndex = 0;
   const layerStartIndices: number[] = [];
   
   // Create neurons for each layer with different properties
