@@ -316,3 +316,100 @@ header h1 {
 .metrics-sidebar::-webkit-scrollbar-thumb:hover {
   background: #666;
 }
+/* Add these styles to your existing App.css */
+
+.help-text {
+  display: block;
+  font-size: 0.8em;
+  color: #888;
+  margin-top: 2px;
+}
+
+.time-display {
+  background: #333;
+  padding: 8px;
+  border-radius: 4px;
+  text-align: center;
+  font-family: monospace;
+  font-size: 1.1em;
+  color: #00ff88;
+  margin-top: 1rem;
+  border: 1px solid #555;
+}
+
+.create-btn {
+  width: 100% !important;
+  background: linear-gradient(135deg, #28a745, #20c997) !important;
+  margin-top: 0.5rem;
+}
+
+.create-btn:hover {
+  background: linear-gradient(135deg, #218838, #1ba085) !important;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: #333;
+  border-radius: 3px;
+  border-left: 2px solid #00ff88;
+}
+
+.stat-label {
+  color: #ccc;
+}
+
+.stat-value {
+  color: #fff;
+  font-weight: bold;
+  font-family: monospace;
+}
+
+.control-section h3 {
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Enhanced button states */
+.control-section button.play {
+  background: linear-gradient(135deg, #28a745, #34ce57);
+  animation: pulse-subtle 2s infinite;
+}
+
+.control-section button.pause {
+  background: linear-gradient(135deg, #ffc107, #ffcd39);
+  color: #000;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { box-shadow: 0 0 5px rgba(40, 167, 69, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.8); }
+}
+
+/* Improved range sliders */
+.control-group input[type="range"]::-webkit-slider-thumb {
+  transition: all 0.2s ease;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb:hover {
+  background: #00ff88;
+  transform: scale(1.2);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
+}
+
+/* Responsive improvements */
+@media (max-width: 1400px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

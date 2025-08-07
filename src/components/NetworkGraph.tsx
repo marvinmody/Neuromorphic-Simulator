@@ -320,4 +320,186 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({
     // Weight and delay labels for highlighted synapses
     if (isHighlighted) {
       const midX = (start.x + end.x) / 2;
-      const midY = (
+      const midY = (start.y + end.y) / 2;
+     
+     ctx.fillStyle = '#ffffff';
+     ctx.font = '10px Arial';
+     ctx.textAlign = 'center';
+     
+     // Create background for text
+     const text1 = `w:${link.weight.toFixed(3)}`;
+     const text2 = `d:${link.delay}ms`;
+     const text3 = showWeightEvolution ? `Δ:${link.weightChange > 0 ? '+' : ''}${link.weightChange.toFixed(3)}` : '';
+     
+     const textHeight = 12;
+     const textY1 = midY - textHeight;
+     const textY2 = midY;
+     const textY3 = midY + textHeight;
+     
+     // Background rectangles
+     const bgPadding = 3;
+     ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+     const textWidth = 60;
+     
+     ctx.fillRect(midX - textWidth/2 - bgPadding, textY1 - textHeight/2 - bgPadding, 
+                  textWidth + 2*bgPadding, textHeight * (text3 ? 3 : 2) + 2*bgPadding);
+     
+     // Text
+     ctx.fillStyle = '#ffffff';
+     ctx.fillText(text1, midX, textY1);
+     ctx.fillText(text2, midX, textY2);
+     if (text3) {
+       ctx.fillStyle = link.weightChange > 0 ? '#00ff88' : '#ff6666';
+       ctx.fillText(text3, midX, textY3);
+     }
+   }
+   
+   // Transmission delay visualization (animated dots for active synapses)
+   // This would require tracking active transmissions, implemented in a future enhancement
+   
+   ctx.restore();
+ }, [highlightLinks, showWeightEvolution]);
+
+ const handleNodeHover = useCallback((node: GraphNode | null) => {
+   setHighlightNodes(new Set());
+   setHighlightLinks(new Set());
+
+   if (node) {
+     const newHighlightNodes = new Set([node.id]);
+     const newHighlightLinks = new Set<string>();
+
+     graphData.links.forEach(link => {
+       const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+       const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+       
+       if (sourceId === node.id || targetId === node.id) {
+         newHighlightLinks.add(link.id);
+         newHighlightNodes.add(sourceId);
+         newHighlightNodes.add(targetId);
+       }
+     });
+
+     setHighlightNodes(newHighlightNodes);
+     setHighlightLinks(newHighlightLinks);
+   }
+   
+   setHoverNode(node);
+ }, [graphData.links]);
+
+ const handleNodeClick = useCallback((node: GraphNode) => {
+   const nodeId = node.id;
+   setSelectedNode(selectedNode === nodeId ? null : nodeId);
+   if (onNodeClick) {
+     onNodeClick(nodeId);
+   }
+ }, [selectedNode, onNodeClick]);
+
+ const handleLinkClick = useCallback((link: GraphLink) => {
+   if (onLinkClick) {
+     onLinkClick(link);
+   }
+ }, [onLinkClick]);
+
+ return (
+   <div style={{ 
+     border: '1px solid #444', 
+     borderRadius: '8px', 
+     overflow: 'hidden', 
+     background: '#0a0a0a',
+     position: 'relative',
+     height: '100%'
+   }}>
+     <ForceGraph2d
+       graphData={graphData}
+       nodeLabel=""
+       nodeCanvasObject={nodePaint}
+       linkCanvasObject={linkPaint}
+       onNodeHover={handleNodeHover}
+       onNodeClick={handleNodeClick}
+       onLinkClick={handleLinkClick}
+       cooldownTicks={100}
+       d3AlphaDecay={0.01}
+       d3VelocityDecay={0.2}
+       enableZoomInteraction={true}
+       enablePanInteraction={true}
+       nodeRelSize={1}
+       linkWidth={0} // We handle width in linkCanvasObject
+       linkDirectionalArrowLength={0} // We handle arrows in linkCanvasObject
+     />
+     
+     {/* Enhanced Legend */}
+     <div style={{
+       position: 'absolute',
+       top: '10px',
+       right: '10px',
+       background: 'rgba(0,0,0,0.9)',
+       padding: '12px',
+       borderRadius: '6px',
+       fontSize: '11px',
+       color: '#ffffff',
+       minWidth: '180px',
+       border: '1px solid #444'
+     }}>
+       <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#00ff88' }}>
+         Network Legend
+       </div>
+       <div style={{ marginBottom: '4px' }}>🟡 Action Potential</div>
+       <div style={{ marginBottom: '4px' }}>🔵 Resting State</div>
+       <div style={{ marginBottom: '4px' }}>⚪ Inner: Membrane Potential</div>
+       <div style={{ marginBottom: '4px' }}>🟦 Excitatory Synapse</div>
+       <div style={{ marginBottom: '4px' }}>🟥 Inhibitory Synapse</div>
+       {showWeightEvolution && (
+         <>
+           <div style={{ marginBottom: '4px' }}>🟢 Potentiation (LTP)</div>
+           <div style={{ marginBottom: '4px' }}>🟠 Depression (LTD)</div>
+         </>
+       )}
+       <div style={{ marginTop: '8px', fontSize: '10px', color: '#aaa' }}>
+         Click neuron for details
+       </div>
+     </div>
+
+     {/* Voltage Trace Panel */}
+     {showVoltageTraces && selectedNode !== null && (
+       <div style={{
+         position: 'absolute',
+         bottom: '10px',
+         left: '10px',
+         background: 'rgba(0,0,0,0.9)',
+         border: '1px solid #444',
+         borderRadius: '6px',
+         padding: '8px',
+         width: '300px',
+         height: '150px'
+       }}>
+         <div style={{ color: '#fff', fontSize: '12px', marginBottom: '4px' }}>
+           Neuron {selectedNode} - Membrane Potential
+         </div>
+         <canvas
+           ref={voltageCanvasRef}
+           width={284}
+           height={120}
+           style={{ border: '1px solid #666' }}
+         />
+       </div>
+     )}
+
+     {/* Network Activity Indicator */}
+     <div style={{
+       position: 'absolute',
+       top: '10px',
+       left: '10px',
+       background: 'rgba(0,0,0,0.8)',
+       padding: '8px',
+       borderRadius: '4px',
+       fontSize: '11px',
+       color: '#fff'
+     }}>
+       <div>Active: {neurons.filter(n => n.hasFired()).length}/{neurons.length}</div>
+       <div>Avg Rate: {(neurons.reduce((sum, n) => sum + n.getInstantaneousFiringRate(), 0) / neurons.length).toFixed(1)} Hz</div>
+     </div>
+   </div>
+ );
+};
+
+export default NetworkGraph;
