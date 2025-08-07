@@ -1,4 +1,15 @@
 // src/lib/Neuron.ts
+
+export interface NeuronConfig {
+  threshold: number;
+  restingPotential: number;
+  resetPotential: number;
+  membraneTau: number; // Membrane time constant (ms)
+  refractoryPeriod: number; // ms
+  capacitance: number; // pF
+  resistance: number; // MOhm
+}
+
 export class Neuron {
   // State variables
   public membranePotential: number = 0;
