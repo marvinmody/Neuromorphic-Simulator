@@ -1,5 +1,3 @@
-// src/lib/Neuron.ts
-
 export interface NeuronConfig {
   threshold: number;
   restingPotential: number;
@@ -11,31 +9,39 @@ export interface NeuronConfig {
 }
 
 export class Neuron {
-  // State variables
-  public membranePotential: number = 0;
-  public readonly threshold: number;
-  public readonly resetPotential: number = 0.0;
-  public readonly decay: number;
-  public readonly refractoryPeriod: number;
-
-  // Firing state
+  // Biologically accurate parameters
+  public membranePotential: number;
+  public readonly config: NeuronConfig;
+  
+  // State tracking
   private fired: boolean = false;
   private lastSpikeTime: number | null = null;
   private refractoryUntil: number = 0;
-
-  // Statistics for monitoring
+  
+  // Biological metrics
   public totalSpikes: number = 0;
   public spikeHistory: number[] = [];
-  public readonly maxHistoryLength: number = 100;
+  public voltageHistory: number[] = [];
+  private readonly maxHistoryLength: number = 200;
+  
+  // Advanced properties
+  public adaptationCurrent: number = 0;
+  public adaptationTimeConstant: number = 100;
+  public adaptationIncrement: number = 0.1;
 
-  constructor(
-    threshold: number = 1.0,
-    decay: number = 0.95,
-    refractoryPeriod: number = 2
-  ) {
-    this.threshold = threshold;
-    this.decay = decay;
-    this.refractoryPeriod = refractoryPeriod;
+  constructor(config: Partial<NeuronConfig> = {}) {
+    this.config = {
+      threshold: -50, // mV
+      restingPotential: -70, // mV
+      resetPotential: -70, // mV
+      membraneTau: 20, // ms
+      refractoryPeriod: 2, // ms
+      capacitance: 100, // pF
+      resistance: 200, // MOhm
+      ...config
+    };
+    
+    this.membranePotential = this.config.restingPotential;
   }
 
   public hasFired(): boolean {
@@ -46,62 +52,83 @@ export class Neuron {
     return currentTime < this.refractoryUntil;
   }
 
-  public getSpikeRate(timeWindow: number = 50): number {
+  public getInstantaneousFiringRate(): number {
     if (this.spikeHistory.length < 2) return 0;
     
-    const currentTime = this.spikeHistory[this.spikeHistory.length - 1] || 0;
-    const validSpikes = this.spikeHistory.filter(
-      time => time > currentTime - timeWindow
-    );
+    const recent = this.spikeHistory.slice(-10);
+    if (recent.length < 2) return 0;
     
-    return validSpikes.length / timeWindow;
+    const intervals = recent.slice(1).map((time, i) => time - recent[i]);
+    const avgInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+    
+    return avgInterval > 0 ? 1000 / avgInterval : 0; // Hz
   }
 
-  public step(inputCurrent: number, time: number): boolean {
+  public getMembranePotentialNormalized(): number {
+    const range = this.config.threshold - this.config.restingPotential;
+    return Math.max(0, Math.min(1, 
+      (this.membranePotential - this.config.restingPotential) / range
+    ));
+  }
+
+  public step(inputCurrent: number, deltaTime: number, currentTime: number): boolean {
     this.fired = false;
 
     // Skip processing if in refractory period
-    if (this.isInRefractoryPeriod(time)) {
+    if (this.isInRefractoryPeriod(currentTime)) {
+      this.membranePotential = this.config.resetPotential;
       return false;
     }
 
-    // Apply decay (leaky part)
-    this.membranePotential *= this.decay;
+    // Apply adaptation current (spike frequency adaptation)
+    const totalCurrent = inputCurrent - this.adaptationCurrent;
+    
+    // Leaky integrate-and-fire dynamics with proper time constants
+    const leak = (this.config.restingPotential - this.membranePotential) / this.config.membraneTau;
+    const injection = totalCurrent / (this.config.capacitance * this.config.resistance);
+    
+    // Euler integration
+    this.membranePotential += (leak + injection) * deltaTime;
+    
+    // Update adaptation current
+    this.adaptationCurrent *= Math.exp(-deltaTime / this.adaptationTimeConstant);
 
-    // Integrate input current
-    this.membranePotential += inputCurrent;
+    // Record voltage history
+    this.voltageHistory.push(this.membranePotential);
+    if (this.voltageHistory.length > this.maxHistoryLength) {
+      this.voltageHistory.shift();
+    }
 
     // Check for spike
-    if (this.membranePotential >= this.threshold) {
-      this.membranePotential = this.resetPotential;
+    if (this.membranePotential >= this.config.threshold) {
       this.fired = true;
-      this.lastSpikeTime = time;
-      this.refractoryUntil = time + this.refractoryPeriod;
+      this.lastSpikeTime = currentTime;
+      this.refractoryUntil = currentTime + this.config.refractoryPeriod;
+      this.membranePotential = this.config.resetPotential;
       
-      // Update statistics
+      // Update adaptation
+      this.adaptationCurrent += this.adaptationIncrement;
+      
+      // Update spike statistics
       this.totalSpikes++;
-      this.spikeHistory.push(time);
+      this.spikeHistory.push(currentTime);
       
-      // Limit history length
       if (this.spikeHistory.length > this.maxHistoryLength) {
         this.spikeHistory.shift();
       }
-    }
-
-    // Clamp potential
-    if (this.membranePotential < this.resetPotential) {
-      this.membranePotential = this.resetPotential;
     }
 
     return this.fired;
   }
 
   public reset(): void {
-    this.membranePotential = this.resetPotential;
+    this.membranePotential = this.config.restingPotential;
     this.fired = false;
     this.lastSpikeTime = null;
     this.refractoryUntil = 0;
     this.totalSpikes = 0;
     this.spikeHistory = [];
+    this.voltageHistory = [];
+    this.adaptationCurrent = 0;
   }
 }
