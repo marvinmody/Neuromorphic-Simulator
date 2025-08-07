@@ -31,9 +31,19 @@ function App() {
     // Create default network
     network.createTopology('random', 8);
     
-    // Add some input stimulation
-    const inputNeuron = network.addNeuron(new Neuron(0.5, 0.9)); // Lower threshold, faster decay
-    network.neurons[inputNeuron].membranePotential = 1.2;
+    // Add some input stimulation - use correct NeuronConfig properties
+    const inputNeuron = network.addNeuron({ 
+      threshold: -45, // Higher threshold for easier firing
+      restingPotential: -70,
+      resetPotential: -70,
+      membraneTau: 10, // Faster response
+      refractoryPeriod: 1,
+      capacitance: 100,
+      resistance: 200
+    });
+    
+    // Set initial membrane potential
+    network.neurons[inputNeuron].membranePotential = -40; // Close to threshold
     
     // Connect input to first few neurons
     for (let i = 0; i < Math.min(3, network.neurons.length - 1); i++) {
@@ -122,6 +132,11 @@ function App() {
     }
   };
 
+  const handleVisualizationChange = (showVoltage: boolean, showWeights: boolean) => {
+    // Implement visualization changes if needed
+    console.log('Visualization changed:', { showVoltage, showWeights });
+  };
+
   const handleNodeClick = (nodeIndex: number) => {
     setSelectedNeuron(nodeIndex === selectedNeuron ? null : nodeIndex);
   };
@@ -157,6 +172,7 @@ function App() {
             onPlayPause={handlePlayPause}
             onReset={handleReset}
             onTopologyChange={handleTopologyChange}
+            onVisualizationChange={handleVisualizationChange}
           />
         </aside>
 
@@ -174,12 +190,13 @@ function App() {
             <div className="neuron-details">
               <h3>Neuron {selectedNeuron} Details</h3>
               <div className="neuron-stats">
-                <div>Membrane Potential: {neurons[selectedNeuron]?.membranePotential.toFixed(3)}</div>
-                <div>Threshold: {neurons[selectedNeuron]?.threshold.toFixed(3)}</div>
+                <div>Membrane Potential: {neurons[selectedNeuron]?.membranePotential.toFixed(3)}mV</div>
+                <div>Threshold: {neurons[selectedNeuron]?.config.threshold.toFixed(3)}mV</div>
                 <div>Total Spikes: {neurons[selectedNeuron]?.totalSpikes}</div>
-                <div>Firing Rate: {neurons[selectedNeuron]?.getSpikeRate().toFixed(3)}</div>
+                <div>Firing Rate: {neurons[selectedNeuron]?.getInstantaneousFiringRate().toFixed(3)}Hz</div>
                 <div>Is Firing: {neurons[selectedNeuron]?.hasFired() ? 'Yes' : 'No'}</div>
                 <div>In Refractory: {neurons[selectedNeuron]?.isInRefractoryPeriod(currentTime) ? 'Yes' : 'No'}</div>
+                <div>Adaptation Current: {neurons[selectedNeuron]?.adaptationCurrent.toFixed(3)}</div>
               </div>
             </div>
           )}

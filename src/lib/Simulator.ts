@@ -17,6 +17,7 @@ export class Simulator {
   // Input patterns
   private currentPattern: InputPattern | null = null;
   public noiseLevel: number = 0.1;
+  public inputStrength: number = 1.0; // Add this property
 
   // Built-in patterns
   public readonly patterns: InputPattern[] = [
@@ -26,6 +27,22 @@ export class Simulator {
         Array.from({ length: networkSize }, () => 
           Math.random() < 0.1 ? Math.random() * 2 : 0
         )
+    },
+    {
+      name: 'Poisson',
+      generate: (time: number, networkSize: number) => 
+        Array.from({ length: networkSize }, () => 
+          Math.random() < 0.05 ? Math.random() * 1.5 : 0
+        )
+    },
+    {
+      name: 'Rhythmic',
+      generate: (time: number, networkSize: number) => {
+        const rhythm = Math.sin(time * 0.1) > 0.5;
+        return Array.from({ length: networkSize }, (_, i) => 
+          rhythm && i < 2 ? 1.2 : 0
+        );
+      }
     },
     {
       name: 'Pulse Train',
@@ -83,6 +100,11 @@ export class Simulator {
     this.noiseLevel = Math.max(0, Math.min(1, level));
   }
 
+  // Add this method
+  setInputStrength(strength: number): void {
+    this.inputStrength = Math.max(0, Math.min(3, strength));
+  }
+
   reset(): void {
     this.time = 0;
     this.frameCounter = 0;
@@ -115,6 +137,9 @@ export class Simulator {
       inputs = new Array(this.network.neurons.length).fill(0);
     }
 
+    // Scale by input strength
+    inputs = inputs.map(input => input * this.inputStrength);
+
     // Add noise
     if (this.noiseLevel > 0) {
       inputs = inputs.map(input => 
@@ -133,9 +158,9 @@ export class Simulator {
   private run = (): void => {
     if (this.frameCounter % this.speed === 0) {
       this.applyInputs();
-      this.network.step(this.time);
+      this.network.step(); // Remove the time parameter
       this.time++;
-      this.onUpdate(this.network, this.time);
+      this.onUpdate(this.network, this.network.currentTime()); // Use network's time
     }
 
     this.frameCounter++;

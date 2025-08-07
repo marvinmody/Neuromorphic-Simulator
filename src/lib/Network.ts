@@ -1,5 +1,7 @@
 import { Neuron, NeuronConfig } from './Neuron';
 
+
+
 export interface SynapseConfig {
   from: number;
   to: number;
@@ -45,6 +47,9 @@ export class Network {
   // Performance tracking
   public networkActivity: number[] = [];
   public synchronyIndex: number = 0;
+  public getCurrentTime(): number {
+    return this.currentTime;
+    }
 
   constructor() {
     this.neurons = [];
@@ -76,29 +81,192 @@ export class Network {
     this.synapses.push(synapse);
   }
 
-  createCorticalColumn(layers: number[] = [4, 8, 6, 2]): void {
-    this.neurons = [];
-    this.synapses = [];
-    
-    let neuronIndex = 0;
-    const layerStartIndices: number[] = [];
-    
-    // Create neurons for each layer with different properties
-    layers.forEach((size, layerIdx) => {
-      layerStartIndices.push(neuronIndex);
-      
-      for (let i = 0; i < size; i++) {
-        // Layer-specific properties
-        const config: Partial<NeuronConfig> = {
-          threshold: -50 + (layerIdx * 2), // Deeper layers slightly higher threshold
-          membraneTau: 15 + (layerIdx * 5), // Deeper layers slower
-          adaptationIncrement: 0.05 + (layerIdx * 0.02)
-        };
-        
-        this.addNeuron(config);
-        neuronIndex++;
+  createTopology(topology: NetworkTopology, size: number): void {
+  // Clear existing network
+  this.neurons = [];
+  this.synapses = [];
+  this.spikeQueue = [];
+  this.networkActivity = [];
+  this.synchronyIndex = 0;
+  this.currentTime = 0;
+
+  // Create neurons
+  for (let i = 0; i < size; i++) {
+    this.addNeuron();
+  }
+
+  // Create connections based on topology
+  switch (topology) {
+    case 'random':
+      this.createRandomTopology();
+      break;
+    case 'feedforward':
+      this.createFeedforwardTopology();
+      break;
+    case 'small-world':
+      this.createSmallWorldTopology();
+      break;
+    case 'ring':
+      this.createRingTopology();
+      break;
+    case 'cortical-column':
+      this.createCorticalColumn([Math.ceil(size/4), Math.ceil(size/3), Math.ceil(size/3), Math.floor(size/4)]);
+      break;
+    default:
+      this.createRandomTopology();
+  }
+}
+
+private createRandomTopology(): void {
+  const connectionProbability = 0.3;
+  
+  for (let i = 0; i < this.neurons.length; i++) {
+    for (let j = 0; j < this.neurons.length; j++) {
+      if (i !== j && Math.random() < connectionProbability) {
+        this.addSynapse({
+          from: i,
+          to: j,
+          weight: 0.2 + Math.random() * 0.6,
+          delay: 1 + Math.floor(Math.random() * 4),
+          plasticity: { enabled: this.globalPlasticityEnabled }
+        });
       }
+    }
+  }
+}
+
+private createFeedforwardTopology(): void {
+  const layerSize = Math.ceil(this.neurons.length / 3);
+  
+  // Connect layer 1 to layer 2
+  for (let i = 0; i < layerSize && i < this.neurons.length; i++) {
+    for (let j = layerSize; j < 2 * layerSize && j < this.neurons.length; j++) {
+      if (Math.random() < 0.8) {
+        this.addSynapse({
+          from: i,
+          to: j,
+          weight: 0.4 + Math.random() * 0.4,
+          delay: 1 + Math.floor(Math.random() * 2),
+          plasticity: { enabled: this.globalPlasticityEnabled }
+        });
+      }
+    }
+  }
+  
+  // Connect layer 2 to layer 3
+  for (let i = layerSize; i < 2 * layerSize && i < this.neurons.length; i++) {
+    for (let j = 2 * layerSize; j < this.neurons.length; j++) {
+      if (Math.random() < 0.8) {
+        this.addSynapse({
+          from: i,
+          to: j,
+          weight: 0.4 + Math.random() * 0.4,
+          delay: 1 + Math.floor(Math.random() * 2),
+          plasticity: { enabled: this.globalPlasticityEnabled }
+        });
+      }
+    }
+  }
+}
+
+private createSmallWorldTopology(): void {
+  // Start with ring topology
+  this.createRingTopology();
+  
+  // Rewire some connections randomly
+  const rewireProbability = 0.3;
+  const originalSynapses = [...this.synapses];
+  
+  originalSynapses.forEach((synapse, index) => {
+    if (Math.random() < rewireProbability) {
+      // Remove old synapse
+      this.synapses.splice(this.synapses.indexOf(synapse), 1);
+      
+      // Add new random connection
+      let newTarget;
+      do {
+        newTarget = Math.floor(Math.random() * this.neurons.length);
+      } while (newTarget === synapse.from || 
+               this.synapses.some(s => s.from === synapse.from && s.to === newTarget));
+      
+      this.addSynapse({
+        from: synapse.from,
+        to: newTarget,
+        weight: synapse.weight,
+        delay: synapse.delay,
+        plasticity: synapse.plasticity
+      });
+    }
+  });
+}
+
+private createRingTopology(): void {
+  // Connect each neuron to its neighbors in a ring
+  for (let i = 0; i < this.neurons.length; i++) {
+    const next = (i + 1) % this.neurons.length;
+    const prev = (i - 1 + this.neurons.length) % this.neurons.length;
+    
+    // Forward connection
+    this.addSynapse({
+      from: i,
+      to: next,
+      weight: 0.5 + Math.random() * 0.3,
+      delay: 1 + Math.floor(Math.random() * 2),
+      plasticity: { enabled: this.globalPlasticityEnabled }
     });
+    
+    // Backward connection (optional, for bidirectional ring)
+    if (Math.random() < 0.5) {
+      this.addSynapse({
+        from: i,
+        to: prev,
+        weight: 0.3 + Math.random() * 0.4,
+        delay: 1 + Math.floor(Math.random() * 3),
+        plasticity: { enabled: this.globalPlasticityEnabled }
+      });
+    }
+    
+    // Add some local clustering
+    const nextNext = (i + 2) % this.neurons.length;
+    if (Math.random() < 0.3) {
+      this.addSynapse({
+        from: i,
+        to: nextNext,
+        weight: 0.2 + Math.random() * 0.3,
+        delay: 2 + Math.floor(Math.random() * 2),
+        plasticity: { enabled: this.globalPlasticityEnabled }
+      });
+    }
+  }
+}
+
+  createCorticalColumn(layers: number[] = [4, 8, 6, 2]): void {
+  this.neurons = [];
+  this.synapses = [];
+  
+  let neuronIndex = 0;
+  const layerStartIndices: number[] = [];
+  
+  // Create neurons for each layer with different properties
+  layers.forEach((size, layerIdx) => {
+    layerStartIndices.push(neuronIndex);
+    
+    for (let i = 0; i < size; i++) {
+      // Layer-specific properties using correct NeuronConfig interface
+      const config: Partial<NeuronConfig> = {
+        threshold: -50 + (layerIdx * 2), // Deeper layers slightly higher threshold
+        membraneTau: 15 + (layerIdx * 5), // Deeper layers slower
+        restingPotential: -70,
+        resetPotential: -70,
+        refractoryPeriod: 2 + layerIdx, // Deeper layers longer refractory
+        capacitance: 100,
+        resistance: 200 + (layerIdx * 50) // Deeper layers higher resistance
+      };
+      
+      this.addNeuron(config);
+      neuronIndex++;
+    }
+  });
     
     // Create inter-layer connections
     for (let layerIdx = 0; layerIdx < layers.length - 1; layerIdx++) {
