@@ -66,7 +66,7 @@ A_{+}\,e^{-\Delta t/\tau_{+}}, & \text{if } \Delta t>0 \quad (\text{LTP})\\[6pt]
 
 ### Installation
 ```bash
-git clone https://github.com/yourusername/neuromorphic-simulator.git
+git clone https://github.com/marvinmody/neuromorphic-simulator.git
 cd neuromorphic-simulator
 npm install
 npm run dev
